@@ -107,8 +107,9 @@ object recallItemCF {
         val seqRecallDistinct = seqRecall.map(_._1).distinct   // 这里要给recall去重！
         val P = seqGT.size.toFloat
         val TP = seqGT.intersect(seqRecallDistinct).size.toFloat
-        (TP, P)
-    }.reduce((x, y) => (x._1 + y._1, x._2 + y._2))
+        val ref = seqRecallDistinct.size.toFloat
+        (TP, P, ref)
+    }.reduce((x, y) => (x._1 + y._1, x._2 + y._2, x._3 + y._3))
 
 //    println("debug 2" + recallHits2.toString)
     val rate = recallHits._1 / recallHits._2
