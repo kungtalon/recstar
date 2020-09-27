@@ -104,9 +104,9 @@ object recallItemCF {
   def metric(recallRDD:RDD[(String, List[(String, Float)])], testData:RDD[(String, String, String)]) : Unit = {
     val recallHits = testData.map(r => (r._1, List(r._3))).reduceByKey(_++_).join(recallRDD).map{
       case (_, (seqGT, seqRecall)) =>
-        val setRecall = seqRecall.map(_._1).toSet   // 这里要给recall去重！
+        val seqRecallDistinct = seqRecall.map(_._1).distinct   // 这里要给recall去重！
         val P = seqGT.size.toFloat
-        val TP = seqGT.count(product => setRecall.contains(product)).toFloat
+        val TP = seqGT.intersect(seqRecallDistinct).size.toFloat
         (TP, P)
     }.reduce((x, y) => (x._1 + y._1, x._2 + y._2))
 

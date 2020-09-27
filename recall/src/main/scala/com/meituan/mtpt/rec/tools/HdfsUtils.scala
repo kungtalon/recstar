@@ -39,7 +39,8 @@ object HdfsUtils {
     recallRDD.map{
       case (orderId, seq) =>
         var rowStr = orderId + ":"
-        for(pair <- seq){
+        val set = seq.toSet
+        for(pair <- set){
           rowStr += pair._1 + "_" + pair._2.toString + ";"
         }
         rowStr
