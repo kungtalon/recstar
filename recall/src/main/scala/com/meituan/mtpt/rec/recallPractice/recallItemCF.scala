@@ -96,7 +96,7 @@ object recallItemCF {
         seqTriggers.map(triggerTuple => (triggerTuple._1, (userId, orderId)))
     }.join(lookUpTable).map{
       case (trigger, ((userId, orderId), seqRecall)) => (orderId, seqRecall)
-    }.reduceByKey(_++_)
+    }.reduceByKey(_++_).map(r => (r._1, r._2.distinct))
 
     productsRecall
   }
