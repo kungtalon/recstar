@@ -108,13 +108,13 @@ object recallItemCF {
         val P = seqGT.size.toFloat
         val TP = seqGT.intersect(seqRecallDistinct).size.toFloat
         val recallSize = seqRecallDistinct.size.toFloat
-        (TP, P, recallSize)
-    }.reduce((x, y) => (x._1 + y._1, x._2 + y._2, x._3 + y._3))
+        (TP, P, recallSize, 1)
+    }.reduce((x, y) => (x._1 + y._1, x._2 + y._2, x._3 + y._3, x._4+y._4))
 
 //    println("debug 2" + recallHits2.toString)
     val rate = recallHits._1 / recallHits._2
     println(recallHits._1.toString + " " + recallHits._2.toString + " " + rate.toString)
-    println(recallHits._3)
+    println(recallHits._3.toString + " " + recallHits._4.toString)
   }
 
   def main(args: Array[String]): Unit ={
