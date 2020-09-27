@@ -121,7 +121,9 @@ object recallItemCF {
     if(args.length >= 2){
       orderBy = args(1)
       if(args.length >= 3){
-        debug = args(2).toBoolean
+        if(args(2) == "debug" || args(2) == "true"){
+          debug = true
+        }
       }
     }
 
