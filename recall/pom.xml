@@ -4,22 +4,18 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <artifactId>crossrec_offline</artifactId>
-        <groupId>com.meituan.mtpt.recsys</groupId>
-        <version>1.0-SNAPSHOT</version>
-    </parent>
-
+    <groupId>com.meituan.mtpt.recsys</groupId>
     <artifactId>recall</artifactId>
+    <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <jdk.version>1.7</jdk.version>
+        <jdk.version>1.8</jdk.version>
         <encoding>UTF-8</encoding>
         <hadoop.version>2.4.1</hadoop.version>
         <org.slf4j-version>1.7.12</org.slf4j-version>
         <spark.version>2.2.0</spark.version>
         <scalaMainVersion>2.11</scalaMainVersion>
-        <scalaVersion>${scalaMainVersion}.8</scalaVersion>
+        <scalaVersion>${scalaMainVersion}.12</scalaVersion>
         <maven.compiler.source>${jdk.version}</maven.compiler.source>
         <maven.compiler.target>${jdk.version}</maven.compiler.target>
         <dependency.version.recommend-common>0.2.60</dependency.version.recommend-common>

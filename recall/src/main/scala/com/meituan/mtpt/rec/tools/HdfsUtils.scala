@@ -2,6 +2,7 @@ package com.meituan.mtpt.rec.tools
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.spark.rdd.RDD
 
 /**
   * Created by feng on 2017/11/2.
@@ -29,4 +30,40 @@ object HdfsUtils {
     hdfs.exists(hdfsPath)
   }
 
+  def saveRecallList(recallRDD : RDD[(String, List[(String, Float)])], path:String) : Unit ={
+    if(exists(path)){
+      hdfsDelete(path)
+    }
+
+    println("saving recall results to " + path)
+    recallRDD.map{
+      case (orderId, seq) =>
+        var rowStr = orderId + ":"
+        for(pair <- seq){
+          rowStr += pair._1 + "_" + pair._2.toString + ";"
+        }
+        rowStr
+    }.saveAsTextFile(path)
+
+  }
+
+  def readRecallList(path:String) : RDD[(String, List[(String, Float)])] ={
+    if(!exists(path)){
+      println("wrong path!")
+      return null
+    }
+
+    println("reading recall results from " + path)
+    val recallRDD = env.sc.textFile(path).map{
+      rowStr:String =>
+        val splitted = rowStr.split(":")
+        val orderId = splitted(0)
+        val products = splitted(1).split(";").map(_.split("_")).map(
+          pair => (pair(0), pair(1).toFloat)
+        ).toList
+        (orderId, products)
+    }
+
+    recallRDD
+  }
 }
