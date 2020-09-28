@@ -1,9 +1,10 @@
 package com.meituan.mtpt.rec.recallPractice
 
 import org.apache.spark.ml.feature.{Word2Vec, Word2VecModel}
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.{DataFrame, Dataset}
 import org.apache.spark.rdd.RDD
-import com.meituan.mtpt.rec.tools.{HdfsUtils, env, ArgParser}
+import com.meituan.mtpt.rec.tools.{ArgParser, HdfsUtils, env}
+
 import scala.util.Random
 
 object recallItem2Vec {
@@ -12,7 +13,7 @@ object recallItem2Vec {
   var windowSize = 160
   var maxShuffleTimes = 10
 
-  def genProductsSeq(priorData: RDD[(String, String, Int)], shuffle:Boolean = false): Dataset[List[String]] ={
+  def genProductsSeq(priorData: RDD[(String, String, Int)], shuffle:Boolean = false): DataFrame ={
     import env.hsc.implicits._
 
     var seqData = priorData.map{
@@ -38,15 +39,15 @@ object recallItem2Vec {
       println("total training set size : " + seqData.count())
     }
 
-    seqData.toDS
+    seqData.toDF("seq")
   }
 
-  def trainWord2VecModel(seqData:Dataset[List[String]]): Word2VecModel = {
+  def trainWord2VecModel(seqData:DataFrame): Word2VecModel = {
     val word2vec = new Word2Vec()
       .setVectorSize(vectorSize)
       .setWindowSize(windowSize)
       .setMinCount(0)
-      .setNumPartitions(64)
+      .setNumPartitions(128)
     val model = word2vec.fit(seqData)
     model
   }
