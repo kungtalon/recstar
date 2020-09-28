@@ -4,23 +4,44 @@ import org.apache.spark.ml.feature.{Word2Vec, Word2VecModel}
 import org.apache.spark.sql.Dataset
 import org.apache.spark.rdd.RDD
 import com.meituan.mtpt.rec.tools.{HdfsUtils, env, ArgParser}
-
+import scala.util.Random
 
 object recallItem2Vec {
-  var debug = false
+  var debug = true
   var vectorSize = 100
-  var windowSize = 150
+  var windowSize = 160
+  var maxShuffleTimes = 10
 
-  def genProductsSeq(priorData: RDD[(String, String, Int)]): Dataset[Seq[String]] ={
+  def genProductsSeq(priorData: RDD[(String, String, Int)], shuffle:Boolean = false): Dataset[List[String]] ={
     import env.hsc.implicits._
 
-    val seqData = priorData.map{
-      case (orderId, productId, cartOrder) => (orderId, Seq((productId, cartOrder)))
+    var seqData = priorData.map{
+      case (orderId, productId, cartOrder) => (orderId, List((productId, cartOrder)))
     }.reduceByKey(_++_).map(r => r._2.sortBy(_._2).map(_._1))
+
+    if(shuffle){
+      seqData = seqData.flatMap(
+        seq => {
+          val shuffleTimes = maxShuffleTimes
+          for(i <- 1 to shuffleTimes) yield {
+            val newSeq = i match {
+              case 1 => seq
+              case _ => Random.shuffle(seq)
+            }
+            newSeq
+          }
+        }
+      )
+    }
+
+    if(debug){
+      println("total training set size : " + seqData.count())
+    }
+
     seqData.toDS
   }
 
-  def trainWord2VecModel(seqData:Dataset[Seq[String]]): Word2VecModel = {
+  def trainWord2VecModel(seqData:Dataset[List[String]]): Word2VecModel = {
     val word2vec = new Word2Vec()
       .setVectorSize(vectorSize)
       .setWindowSize(windowSize)
@@ -92,19 +113,30 @@ object recallItem2Vec {
     val argMap = ArgParser.parseAsMap(args)
     println(argMap)
     vectorSize = argMap.getOrElse("vectorSize", "100").toInt
-    windowSize = argMap.getOrElse("windowSize", "150").toInt
+    windowSize = argMap.getOrElse("windowSize", "160").toInt
     debug = argMap.getOrElse("debug", "false").toBoolean
+    val shuffle = argMap.getOrElse("shuffle", "false").toBoolean
+    maxShuffleTimes = argMap.getOrElse("maxShuffleTimes", "0").toInt
     val orderBy = argMap.getOrElse("orderBy", "orderNum")
+    println((vectorSize, windowSize, ))
 
     val data = loadData()
     val priorData = data._1
     val testData = data._2
     val userHistory = data._3
 
-    val seqData = genProductsSeq(priorData)
+    val seqData = genProductsSeq(priorData, shuffle)
     val model = trainWord2VecModel(seqData)
 
     val seqRecall = doRecall(testData, userHistory, model, orderBy)
+
+    if(debug){
+      println("total recall size : " + seqRecall.count())
+    }
+
+    val shuffleStr = Map(true -> ("_"+maxShuffleTimes.toString), false->"")
+    val path = s"/user/hadoop-recsys/jiangzelong02/recstar/item2Vec/v${vectorSize}_w${windowSize}${shuffleStr(shuffle)}}"
+    HdfsUtils.saveRecallList(seqRecall, path)
 
     metric(seqRecall, testData)
   }
