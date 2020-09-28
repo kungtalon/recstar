@@ -27,7 +27,7 @@ object recallItemCF {
     }.join(productsScore).map{
       case (p2, ((p1, v, s1), s2)) => (p1, List((p2, v/(s1*s2))))
     }.reduceByKey(_++_).map{
-      case (p1, seq) => (p1, seq.sortBy(-_._2).take(10))
+      case (p1, seq) => (p1, seq.filter(_._1 != p1).sortBy(-_._2).take(10))
     }
 
     concurScore
@@ -93,9 +93,9 @@ object recallItemCF {
 
     val productsRecall = testData.map(r => (r._2, r._1)).join(userTriggers).flatMap{
       case (userId, (orderId, seqTriggers)) =>
-        seqTriggers.map(triggerTuple => (triggerTuple._1, (userId, orderId)))
+        seqTriggers.map(triggerTuple => (triggerTuple._1, orderId))
     }.join(lookUpTable).map{
-      case (trigger, ((userId, orderId), seqRecall)) => (orderId, seqRecall)
+      case (trigger, (orderId, seqRecall)) => (orderId, seqRecall)
     }.reduceByKey(_++_).map(r => (r._1, r._2.distinct))
 
     productsRecall
@@ -107,7 +107,7 @@ object recallItemCF {
         val seqRecallDistinct = seqRecall.map(_._1).distinct   // 这里要给recall去重！
         val P = seqGT.size.toFloat
         val TP = seqGT.intersect(seqRecallDistinct).size.toFloat
-        val recallSize = seqRecallDistinct.size.toFloat
+        val recallSize = seqRecallDistinct.size
         (TP, P, recallSize, 1)
     }.reduce((x, y) => (x._1 + y._1, x._2 + y._2, x._3 + y._3, x._4+y._4))
 
