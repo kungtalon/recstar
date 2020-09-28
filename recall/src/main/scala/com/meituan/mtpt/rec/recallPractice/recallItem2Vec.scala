@@ -118,7 +118,7 @@ object recallItem2Vec {
     val shuffle = argMap.getOrElse("shuffle", "false").toBoolean
     maxShuffleTimes = argMap.getOrElse("maxShuffleTimes", "0").toInt
     val orderBy = argMap.getOrElse("orderBy", "orderNum")
-    println((vectorSize, windowSize, ))
+    println((vectorSize, windowSize, shuffle, maxShuffleTimes, orderBy))
 
     val data = loadData()
     val priorData = data._1
@@ -135,7 +135,7 @@ object recallItem2Vec {
     }
 
     val shuffleStr = Map(true -> ("_"+maxShuffleTimes.toString), false->"")
-    val path = s"/user/hadoop-recsys/jiangzelong02/recstar/item2Vec/v${vectorSize}_w${windowSize}${shuffleStr(shuffle)}}"
+    val path = s"/user/hadoop-recsys/jiangzelong02/recstar/item2Vec/v${vectorSize}_w${windowSize}_${orderBy}${shuffleStr(shuffle)}}"
     HdfsUtils.saveRecallList(seqRecall, path)
 
     metric(seqRecall, testData)
