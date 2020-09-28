@@ -39,7 +39,7 @@ object recallItem2Vec {
       println("total training set size : " + seqData.count())
     }
 
-    seqData.toDF("seq")
+    seqData.toDF("inputCol")
   }
 
   def trainWord2VecModel(seqData:DataFrame): Word2VecModel = {
