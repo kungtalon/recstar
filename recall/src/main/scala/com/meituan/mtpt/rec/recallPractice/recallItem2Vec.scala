@@ -85,11 +85,11 @@ object recallItem2Vec {
 
     val productsRecall = testData.map(r => (r._2, r._1)).join(userTriggers).flatMap{
       case (userId, (orderId, seqTriggers)) =>
-        seqTriggers.map(triggerTuple => (triggerTuple._1, orderId))
+        seqTriggers.map(triggerTuple => (orderId, triggerTuple._1))
     }.map{
-      case (trigger, orderId) =>
-        val seqRecall = word2VecModel.findSynonymsArray(trigger, 10)
-        (orderId, seqRecall.map(r => (r._1, r._2.toFloat)).toList)
+      case (orderId, trigger) => (orderId, word2VecModel.findSynonymsArray(trigger, 10))
+    }.map{
+      case (orderId, seqRecall) => (orderId, seqRecall.map(r => (r._1, r._2.toFloat)).toList)
     }.reduceByKey(_++_)
 
     productsRecall
