@@ -39,7 +39,7 @@ object recallItem2Vec {
       println("total training set size : " + seqData.count())
     }
 
-    seqData.toDF("inputCol")
+    seqData.toDF("seq")
   }
 
   def trainWord2VecModel(seqData:DataFrame): Word2VecModel = {
@@ -48,6 +48,8 @@ object recallItem2Vec {
       .setWindowSize(windowSize)
       .setMinCount(0)
       .setNumPartitions(128)
+      .setInputCol("seq")
+      .setOutputCol("res")
     val model = word2vec.fit(seqData)
     model
   }
