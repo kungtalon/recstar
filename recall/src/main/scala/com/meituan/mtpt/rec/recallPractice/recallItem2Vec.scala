@@ -3,6 +3,7 @@ package com.meituan.mtpt.rec.recallPractice
 import org.apache.spark.ml.feature.{Word2Vec, Word2VecModel}
 import org.apache.spark.sql.{DataFrame, Dataset}
 import org.apache.spark.rdd.RDD
+import scala.collection.mutable.ArrayBuffer
 import com.meituan.mtpt.rec.tools.{ArgParser, HdfsUtils, env}
 import org.apache.spark.sql.functions._
 import env.hsc.implicits._
@@ -26,13 +27,11 @@ object recallItem2Vec {
       seqData = seqData.flatMap(
         seq => {
           val shuffleTimes = maxShuffleTimes
-          for(i <- 1 to shuffleTimes) yield {
-            val newSeq = i match {
-              case 1 => seq
-              case _ => Random.shuffle(seq)
-            }
-            newSeq
+          var newSeq = ArrayBuffer(seq)
+          for(_ <- 1 to shuffleTimes)  {
+            newSeq += Random.shuffle(seq)
           }
+          newSeq
         }
       )
     }
