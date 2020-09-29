@@ -19,7 +19,7 @@ object recallItem2Vec {
   def genProductsSeq(priorData: RDD[(String, String, Int)], shuffle:Boolean = false): DataFrame ={
 
     var seqData = priorData.map{
-      case (orderId, productId, cartOrder) => (orderId, List((productId, cartOrder)))
+      case (orderId, productId, cartOrder) => (orderId, Seq((productId, cartOrder)))
     }.reduceByKey(_++_).map(r => r._2.sortBy(_._2).map(_._1))
 
     if(shuffle){
@@ -85,7 +85,7 @@ object recallItem2Vec {
       println("userTriggers size : " + userTriggers.count().toString)
     }
 
-    val getSimilarWords = udf((word:String) => {word2VecModel.findSynonymsArray(word, 20) })
+    val getSimilarWords = udf((word:String) => {word2VecModel.findSynonymsArray(word, 10) })
 
     val productsRecall = testData.map(r => (r._2, r._1)).join(userTriggers).flatMap{
       case (userId, (orderId, seqTriggers)) =>
