@@ -4,6 +4,8 @@ import org.apache.spark.ml.feature.{Word2Vec, Word2VecModel}
 import org.apache.spark.sql.{DataFrame, Dataset}
 import org.apache.spark.rdd.RDD
 import com.meituan.mtpt.rec.tools.{ArgParser, HdfsUtils, env}
+import org.apache.spark.sql.functions._
+import env.hsc.implicits._
 
 import scala.util.Random
 
@@ -14,7 +16,6 @@ object recallItem2Vec {
   var maxShuffleTimes = 10
 
   def genProductsSeq(priorData: RDD[(String, String, Int)], shuffle:Boolean = false): DataFrame ={
-    import env.hsc.implicits._
 
     var seqData = priorData.map{
       case (orderId, productId, cartOrder) => (orderId, List((productId, cartOrder)))
@@ -47,7 +48,7 @@ object recallItem2Vec {
       .setVectorSize(vectorSize)
       .setWindowSize(windowSize)
       .setMinCount(0)
-      .setNumPartitions(128)
+      .setNumPartitions(1)
       .setInputCol("seq")
       .setOutputCol("res")
     val model = word2vec.fit(seqData)
@@ -83,13 +84,16 @@ object recallItem2Vec {
       println("userTriggers size : " + userTriggers.count().toString)
     }
 
+    val getSimilarWords = udf((word:String) => {word2VecModel.findSynonymsArray(word, 20) })
+
     val productsRecall = testData.map(r => (r._2, r._1)).join(userTriggers).flatMap{
       case (userId, (orderId, seqTriggers)) =>
         seqTriggers.map(triggerTuple => (orderId, triggerTuple._1))
-    }.map{
-      case (orderId, trigger) => (orderId, word2VecModel.findSynonymsArray(trigger, 10))
-    }.map{
-      case (orderId, seqRecall) => (orderId, seqRecall.map(r => (r._1, r._2.toFloat)).toList)
+    }.toDF("orderId", "input").withColumn("synonymes", getSimilarWords($"input")).rdd.map{
+      row =>
+        val orderId = row.getAs("orderId").toString
+        val seqRecall = row.getAs[Array[(String, Double)]]("synonymes")
+        (orderId, seqRecall.map(r=>(r._1, r._2.toFloat)).toList)
     }.reduceByKey(_++_)
 
     productsRecall
