@@ -86,6 +86,10 @@ object recallItem2Vec {
 
     val getSimilarWords = udf((word:String) => {word2VecModel.findSynonymsArray(word, 10) })
 
+    if(debug){
+      println(word2VecModel.findSynonymsArray("33120", 5).mkString(","))
+    }
+
     val productsRecall = testData.map(r => (r._2, r._1)).join(userTriggers).flatMap{
       case (userId, (orderId, seqTriggers)) =>
         seqTriggers.map(triggerTuple => (orderId, triggerTuple._1))
