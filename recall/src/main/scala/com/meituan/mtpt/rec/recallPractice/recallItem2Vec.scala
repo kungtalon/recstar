@@ -14,6 +14,7 @@ object recallItem2Vec {
   var vectorSize = 100
   var windowSize = 160
   var maxShuffleTimes = 10
+  var numPartitions = 1
 
   def genProductsSeq(priorData: RDD[(String, String, Int)], shuffle:Boolean = false): DataFrame ={
 
@@ -48,7 +49,7 @@ object recallItem2Vec {
       .setVectorSize(vectorSize)
       .setWindowSize(windowSize)
       .setMinCount(0)
-      .setNumPartitions(1)
+      .setNumPartitions(numPartitions)
       .setInputCol("seq")
       .setOutputCol("res")
     val model = word2vec.fit(seqData)
@@ -124,8 +125,9 @@ object recallItem2Vec {
     debug = argMap.getOrElse("debug", "false").toBoolean
     val shuffle = argMap.getOrElse("shuffle", "false").toBoolean
     maxShuffleTimes = argMap.getOrElse("maxShuffleTimes", "0").toInt
+    numPartitions = argMap.getOrElse("numPartitions", "128").toInt
     val orderBy = argMap.getOrElse("orderBy", "orderNum")
-    println((vectorSize, windowSize, shuffle, maxShuffleTimes, orderBy))
+    println((vectorSize, windowSize, shuffle, maxShuffleTimes, numPartitions, orderBy))
 
     val data = loadData()
     val priorData = data._1
