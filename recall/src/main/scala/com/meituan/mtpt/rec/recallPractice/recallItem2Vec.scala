@@ -84,21 +84,25 @@ object recallItem2Vec {
       println("userTriggers size : " + userTriggers.count().toString)
     }
 
-    val getSimilarWords = udf((word:String) => {word2VecModel.findSynonymsArray(word, 10) })
-
     if(debug){
-      println(word2VecModel.findSynonymsArray("33120", 5).mkString(","))
+      println(word2VecModel.findSynonymsArray("33120", 10).mkString(","))
     }
 
     val productsRecall = testData.map(r => (r._2, r._1)).join(userTriggers).flatMap{
       case (userId, (orderId, seqTriggers)) =>
         seqTriggers.map(triggerTuple => (orderId, triggerTuple._1))
-    }.toDF("orderId", "input").withColumn("synonymes", getSimilarWords($"input")).rdd.map{
-      row =>
-        val orderId = row.getAs("orderId").toString
-        val seqRecall = row.getAs[Array[(String, Double)]]("synonymes")
-        (orderId, seqRecall.map(r=>(r._1, r._2.toFloat)).toList)
-    }.reduceByKey(_++_)
+    }.map{
+      case (orderId, trigger) =>
+        var res = Array.fill(10)("0", 0D)
+        try {
+          res = word2VecModel.findSynonymsArray(word=trigger, num=10)
+        } catch {
+          case _ : Throwable => { println("null returned for item " + trigger) }
+        }
+        (orderId, res)
+    }.map(
+      r => (r._1, r._2.map(x => (x._1, x._2.toFloat)).toList)
+    ).reduceByKey(_++_)
 
     productsRecall
   }
