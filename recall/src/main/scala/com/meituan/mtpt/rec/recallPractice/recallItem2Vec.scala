@@ -84,10 +84,6 @@ object recallItem2Vec {
       println("userTriggers size : " + userTriggers.count().toString)
     }
 
-    if(debug){
-      println(word2VecModel.findSynonymsArray("33120", 10).mkString(","))
-    }
-
     val myFindSynonyms = (trigger: String) => word2VecModel.findSynonymsArray(trigger, 10)
 
     val triggerList = userTriggers.flatMap(r => r._2.map(_._1)).distinct()
@@ -105,7 +101,7 @@ object recallItem2Vec {
 
     val productsRecall = testData.map(r => (r._2, r._1)).join(userTriggers).flatMap{
       case (userId, (orderId, seqTriggers)) =>
-        seqTriggers.map(triggerTuple => (orderId, triggerTuple._1))
+        seqTriggers.map(triggerTuple => (triggerTuple._1, orderId))
     }.join(triggerSynonyms).map{
       case (trigger, (orderId, seq)) =>
         (orderId, seq.map(x => (x._1, x._2.toFloat)).toList)
