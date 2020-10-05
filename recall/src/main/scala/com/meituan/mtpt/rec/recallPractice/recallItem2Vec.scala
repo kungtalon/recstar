@@ -14,19 +14,18 @@ object recallItem2Vec {
   var debug = true
   var vectorSize = 100
   var windowSize = 160
-  var maxShuffleTimes = 10
   var numPartitions = 1
+  var maxIter = 1
 
-  def genProductsSeq(priorData: RDD[(String, String, Int)], shuffle:Boolean = false): DataFrame ={
+  def genProductsSeq(priorData: RDD[(String, String, Int)], shuffleTimes: Int): DataFrame ={
 
     var seqData = priorData.map{
       case (orderId, productId, cartOrder) => (orderId, List((productId, cartOrder)))
     }.reduceByKey(_++_).map(r => r._2.sortBy(_._2).map(_._1))
 
-    if(shuffle){
+    if(shuffleTimes > 0){
       seqData = seqData.flatMap(
         seq => {
-          val shuffleTimes = maxShuffleTimes
           var newSeq = ArrayBuffer[List[String]](seq)
           for(_ <- 1 to shuffleTimes)  {
             newSeq += Random.shuffle(seq)
@@ -40,16 +39,17 @@ object recallItem2Vec {
       println("total training set size : " + seqData.count())
     }
 
-    seqData.toDF("seq")
+    seqData.toDF("inp")
   }
 
   def trainWord2VecModel(seqData:DataFrame): Word2VecModel = {
     val word2vec = new Word2Vec()
       .setVectorSize(vectorSize)
       .setWindowSize(windowSize)
+      .setMaxIter(maxIter)
       .setMinCount(0)
       .setNumPartitions(numPartitions)
-      .setInputCol("seq")
+      .setInputCol("inp")
       .setOutputCol("res")
     val model = word2vec.fit(seqData)
     model
@@ -133,18 +133,18 @@ object recallItem2Vec {
     vectorSize = argMap.getOrElse("vectorSize", "100").toInt
     windowSize = argMap.getOrElse("windowSize", "160").toInt
     debug = argMap.getOrElse("debug", "false").toBoolean
-    val shuffle = argMap.getOrElse("shuffle", "false").toBoolean
-    maxShuffleTimes = argMap.getOrElse("maxShuffleTimes", "0").toInt
+    val shuffleTimes = argMap.getOrElse("shuffleTimes", "0").toInt
     numPartitions = argMap.getOrElse("numPartitions", "128").toInt
     val orderBy = argMap.getOrElse("orderBy", "orderNum")
-    println((vectorSize, windowSize, shuffle, maxShuffleTimes, numPartitions, orderBy))
+    maxIter = argMap.getOrElse("maxIter", "1").toInt
+    println((vectorSize, windowSize, shuffleTimes, maxIter, orderBy))
 
     val data = loadData()
     val priorData = data._1
     val testData = data._2
     val userHistory = data._3
 
-    val seqData = genProductsSeq(priorData, shuffle)
+    val seqData = genProductsSeq(priorData, shuffleTimes)
     val model = trainWord2VecModel(seqData)
 
     val seqRecall = doRecall(testData, userHistory, model, orderBy)
@@ -153,8 +153,8 @@ object recallItem2Vec {
       println("total recall size : " + seqRecall.count())
     }
 
-    val shuffleStr = Map(true -> ("_"+maxShuffleTimes.toString), false->"")
-    val path = s"/user/hadoop-recsys/jiangzelong02/recstar/item2Vec/v${vectorSize}_w${windowSize}_$orderBy${shuffleStr(shuffle)}"
+    val baseDir = "/user/hadoop-recsys/jiangzelong02/recstar/item2Vec/"
+    val path = baseDir + s"v${vectorSize}_w${windowSize}_${orderBy}_s${shuffleTimes}"
     HdfsUtils.saveRecallList(seqRecall, path)
 
     metric(seqRecall, testData)
@@ -162,11 +162,12 @@ object recallItem2Vec {
 
 
   def loadData(): (RDD[(String, String, Int)], RDD[(String, String, String)], RDD[(String, String, Int)]) ={
-    val priorDataSql = """
-                         |select t_prior.order_id order_id,
-                         |       t_prior.product_id product_id,
-                         |       add_to_cart_order
-                         |  from ba_dealrank.recommend_star_order_products__prior t_prior
+    val priorDataSql =
+      s"""
+       |select t_prior.order_id order_id,
+       |       t_prior.product_id product_id,
+       |       add_to_cart_order
+       |  from ba_dealrank.recommend_star_order_products__prior t_prior
     """.stripMargin
 
     val testDataSql =
