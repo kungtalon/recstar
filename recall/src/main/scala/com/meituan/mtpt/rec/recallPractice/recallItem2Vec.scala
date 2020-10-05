@@ -90,7 +90,7 @@ object recallItem2Vec {
 
     val myFindSynonyms = udf((trigger: String) => word2VecModel.findSynonymsArray(trigger, 10))
 
-    val triggerSynonyms = userTriggers.flatMap(r => r._2).distinct()
+    val triggerSynonyms = userTriggers.flatMap(r => r._2.map(_._1)).distinct()
       .toDF("trigger").withColumn("synonyms", myFindSynonyms(col("trigger")))
       .rdd.map{
       r =>
