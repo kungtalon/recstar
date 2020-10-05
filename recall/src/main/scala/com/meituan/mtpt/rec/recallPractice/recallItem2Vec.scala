@@ -154,7 +154,7 @@ object recallItem2Vec {
     }
 
     val shuffleStr = Map(true -> ("_"+maxShuffleTimes.toString), false->"")
-    val path = s"/user/hadoop-recsys/jiangzelong02/recstar/item2Vec/v${vectorSize}_w${windowSize}_${orderBy}${shuffleStr(shuffle)}}"
+    val path = s"/user/hadoop-recsys/jiangzelong02/recstar/item2Vec/v${vectorSize}_w${windowSize}_$orderBy${shuffleStr(shuffle)}"
     HdfsUtils.saveRecallList(seqRecall, path)
 
     metric(seqRecall, testData)
