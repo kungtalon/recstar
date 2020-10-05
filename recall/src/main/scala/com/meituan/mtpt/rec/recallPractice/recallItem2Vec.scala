@@ -20,14 +20,14 @@ object recallItem2Vec {
   def genProductsSeq(priorData: RDD[(String, String, Int)], shuffle:Boolean = false): DataFrame ={
 
     var seqData = priorData.map{
-      case (orderId, productId, cartOrder) => (orderId, Seq((productId, cartOrder)))
+      case (orderId, productId, cartOrder) => (orderId, List((productId, cartOrder)))
     }.reduceByKey(_++_).map(r => r._2.sortBy(_._2).map(_._1))
 
     if(shuffle){
       seqData = seqData.flatMap(
         seq => {
           val shuffleTimes = maxShuffleTimes
-          var newSeq = ArrayBuffer(seq)
+          var newSeq = ArrayBuffer[List[String]](seq)
           for(_ <- 1 to shuffleTimes)  {
             newSeq += Random.shuffle(seq)
           }
