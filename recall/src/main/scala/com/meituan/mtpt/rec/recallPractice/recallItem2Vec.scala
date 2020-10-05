@@ -99,6 +99,10 @@ object recallItem2Vec {
     })
     val triggerSynonyms = env.sc.parallelize(synonyms)
 
+    if(debug){
+      println("triggerSynonyms size : " + synonyms.size)
+    }
+
     val productsRecall = testData.map(r => (r._2, r._1)).join(userTriggers).flatMap{
       case (userId, (orderId, seqTriggers)) =>
         seqTriggers.map(triggerTuple => (orderId, triggerTuple._1))
