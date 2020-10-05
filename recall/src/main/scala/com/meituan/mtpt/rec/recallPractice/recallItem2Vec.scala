@@ -88,21 +88,24 @@ object recallItem2Vec {
       println(word2VecModel.findSynonymsArray("33120", 10).mkString(","))
     }
 
+    val myFindSynonyms = udf((trigger: String) => word2VecModel.findSynonymsArray(trigger, 10))
+
+    val triggerSynonyms = userTriggers.flatMap(r => r._2).distinct()
+      .toDF("trigger").withColumn("synonyms", myFindSynonyms(col("trigger")))
+      .rdd.map{
+      r =>
+        val trigger = r.getAs[String]("trigger")
+        val result = r.getAs[Array[(String, Double)]]("synonyms")
+        (trigger, result)
+    }
+
     val productsRecall = testData.map(r => (r._2, r._1)).join(userTriggers).flatMap{
       case (userId, (orderId, seqTriggers)) =>
         seqTriggers.map(triggerTuple => (orderId, triggerTuple._1))
-    }.map{
-      case (orderId, trigger) =>
-        var res = Array.fill(10)("0", 0D)
-        try {
-          res = word2VecModel.findSynonymsArray(word=trigger, num=10)
-        } catch {
-          case _ : Throwable => { println("null returned for item " + trigger) }
-        }
-        (orderId, res)
-    }.map(
-      r => (r._1, r._2.map(x => (x._1, x._2.toFloat)).toList)
-    ).reduceByKey(_++_)
+    }.join(triggerSynonyms).map{
+      case (trigger, (orderId, seq)) =>
+        (orderId, seq.map(x => (x._1, x._2.toFloat)).toList)
+    }.reduceByKey(_++_)
 
     productsRecall
   }
@@ -160,31 +163,31 @@ object recallItem2Vec {
 
   def loadData(): (RDD[(String, String, Int)], RDD[(String, String, String)], RDD[(String, String, Int)]) ={
     val priorDataSql = """
-    |select t_prior.order_id order_id,
-    |       t_prior.product_id product_id,
-    |       add_to_cart_order
-    |  from ba_dealrank.recommend_star_order_products__prior t_prior
+                         |select t_prior.order_id order_id,
+                         |       t_prior.product_id product_id,
+                         |       add_to_cart_order
+                         |  from ba_dealrank.recommend_star_order_products__prior t_prior
     """.stripMargin
 
     val testDataSql =
       s"""
-   |  select t_train.order_id order_id,
-   |       t_train.product_id product_id,
-   |       user_id
-   |  from ba_dealrank.recommend_star_order_products__train t_train
-   |  left join ba_dealrank.recommend_star_orders t_order
-   |    on t_order.order_id = t_train.order_id
+         |  select t_train.order_id order_id,
+         |       t_train.product_id product_id,
+         |       user_id
+         |  from ba_dealrank.recommend_star_order_products__train t_train
+         |  left join ba_dealrank.recommend_star_orders t_order
+         |    on t_order.order_id = t_train.order_id
       """.stripMargin
 
     val userHistorySql =
       s"""
-   |select t_prior.order_id order_id,
-   |       t_prior.product_id product_id,
-   |       user_id,
-   |       order_number
-   |  from ba_dealrank.recommend_star_order_products__prior t_prior
-   |  left join ba_dealrank.recommend_star_orders t_order
-   |    on t_order.order_id = t_prior.order_id
+         |select t_prior.order_id order_id,
+         |       t_prior.product_id product_id,
+         |       user_id,
+         |       order_number
+         |  from ba_dealrank.recommend_star_order_products__prior t_prior
+         |  left join ba_dealrank.recommend_star_orders t_order
+         |    on t_order.order_id = t_prior.order_id
   """.stripMargin
 
     val priorData = env.hsc.sql(priorDataSql).rdd.map(
