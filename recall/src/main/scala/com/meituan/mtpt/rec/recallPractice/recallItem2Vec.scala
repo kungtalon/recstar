@@ -88,16 +88,16 @@ object recallItem2Vec {
       println(word2VecModel.findSynonymsArray("33120", 10).mkString(","))
     }
 
-    val myFindSynonyms = udf((trigger: String) => word2VecModel.findSynonymsArray(trigger, 10))
+    val myFindSynonyms = (trigger: String) => word2VecModel.findSynonymsArray(trigger, 10)
 
-    val triggerSynonyms = userTriggers.flatMap(r => r._2.map(_._1)).distinct()
-      .toDF("trigger").withColumn("synonyms", myFindSynonyms(col("trigger")))
-      .rdd.map{
-      r =>
-        val trigger = r.getAs[String]("trigger")
-        val result = r.getAs[Array[(String, Double)]]("synonyms")
-        (trigger, result)
-    }
+    val triggerList = userTriggers.flatMap(r => r._2.map(_._1)).distinct()
+      .collect().toList
+
+    var synonyms = ArrayBuffer[(String, Array[(String, Double)])]()
+    triggerList.foreach(productId => {
+      synonyms += ((productId, myFindSynonyms(productId)))
+    })
+    val triggerSynonyms = env.sc.parallelize(synonyms)
 
     val productsRecall = testData.map(r => (r._2, r._1)).join(userTriggers).flatMap{
       case (userId, (orderId, seqTriggers)) =>
