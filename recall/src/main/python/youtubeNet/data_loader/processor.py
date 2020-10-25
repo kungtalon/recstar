@@ -92,6 +92,8 @@ class DataProcessor:
         item_dept = self.tables['products'][['product_id', 'department_id']].drop_duplicates()
         aisle_list = item_aisle['aisle_id'].tolist()
         dept_list = item_dept['department_id'].tolist()
+        aisle_list.insert(0, 0)
+        dept_list.insert(0, 0)
         return aisle_list, dept_list
 
     def transform_y(self, item_count):
@@ -122,6 +124,7 @@ class DataProcessor:
         input_data['hist_len'] = input_data['last_order_list'].map(lambda x: len(x))
         input_data['hist_seq'] = input_data['last_order_list'].map(self.transform_hist(args.hist_maxlen))
         input_data['y'] = input_data['order_list'].map(self.transform_y(args.item_count))
+        input_data['sampled_y'] = input_data.apply(lambda row : row['y'][row['sub_samples']], axis=1)
         return input_data.drop(['order_list', 'last_order_list'], axis=1)
 
 class NegativeSampling:

@@ -35,6 +35,7 @@ class DataLoader:
         self.cur_inp = None
         self.batch_size = args.batch_size
         self.shard_count = args.shard_count
+        self.dense_size = args.dense_size
 
     def load_prior_input(self):
         if exists(prior_raw_path):
@@ -71,24 +72,24 @@ class DataLoader:
             self.cur_inp = self.cur_inp.sample(frac=1)
             self.cur_inp = self.processor.process_sharded_data(self.cur_inp, self.args)
             cur_len = len(self.cur_inp)
-            for i in range(np.ceil(cur_len / self.batch_size)):
+            for i in range(int(np.ceil(cur_len / self.batch_size))):
                 batched_data = self.cur_inp[i * self.batch_size : (i+1) * self.batch_size]
-                y = np.array(batched_data['y'].to_list())
+                sampled_y = np.array(batched_data['sampled_y'].to_list())
                 hist_seq = np.array(batched_data['hist_seq'].to_list())
                 hist_len = np.array(batched_data['hist_len'].to_list())
                 sub_samples = np.array(batched_data['sub_samples'].to_list())
-                dow = to_categorical(np.array(batched_data['order_dow'].to_list()))
-                hod = to_categorical(np.array(batched_data['order_hour_of_day'].to_list()))
-                dense = np.array(batched_data['days_since_prior_order'].to_list())
-                yield {'hist_seq': hist_seq, 
+                dow = to_categorical(np.array(batched_data['order_dow'].to_list()), num_classes=7)
+                hod = to_categorical(np.array(batched_data['order_hour_of_day'].to_list()), num_classes=24)
+                dense = np.array(batched_data['days_since_prior_order'].to_list()).reshape(-1, self.dense_size)
+                yield {'hist_seq': hist_seq,
                        'hist_len': hist_len,
-                       'y': y, 
-                       'dow': dow, 
+                       'sampled_y': sampled_y,
+                       'dow': dow,
                        'hod': hod,
                        'sub_samples': sub_samples,
                        'dense': dense}
 
-    def load_array(self, series, dtype='float32'):
+    def parse_array(self, series, dtype='float32'):
         # transform from str type to numpy array
         def aux(mylist):
             if mylist[0] == '[':
@@ -105,7 +106,7 @@ class DataLoader:
     def load_csv_with_arrays(self, path, columns):
         raw = pd.read_csv(path)
         for cname, dtype in columns:
-            raw[cname] = self.load_array(raw[cname], dtype)
+            raw[cname] = self.parse_array(raw[cname], dtype)
         return raw
 
 if __name__ == '__main__':

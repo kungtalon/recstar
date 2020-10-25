@@ -114,7 +114,7 @@ class YoutubeNet:
             '''
             self.yhat = tf.nn.softmax(self.logits)
 
-            self.loss = tf.reduce_mean(-self.y * tf.log(self.yhat + 1e-24))
+            self.loss = -tf.reduce_mean(tf.multiply(self.y, tf.log(self.yhat + 1e-24)))
 
             trainable_params = tf.trainable_variables()
             self.opt = tf.train.GradientDescentOptimizer(learning_rate=self.lr)
@@ -134,16 +134,16 @@ class YoutubeNet:
             self.logits = tf.matmul(layer_3, all_emb, transpose_b=True)+item_b
             self.output = tf.nn.softmax(self.logits)
 
-    def train(self, sess, data, l):
+    def train(self, sess, data, lr):
         loss, _ = sess.run([self.loss, self.train_op], feed_dict={
             self.sub_sample: data['sub_samples'],
-            self.y: data['y'],
+            self.y: data['sampled_y'],
             self.hist_i: data['hist_seq'],
             self.sl: data['hist_len'],
             self.dow: data['dow'],
             self.hod: data['hod'],
             self.dense: data['dense'],
-            self.lr: l,
+            self.lr: lr
         })
         return loss
 
