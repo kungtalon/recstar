@@ -20,11 +20,13 @@ class MyArgs:
         self.aisle_count = cmd_args.aisle_count + 1
         self.dept_count = cmd_args.dept_count + 1
         self.epoch = cmd_args.epoch
+        self.dense_size = 1
         self.shard_count = 100
+        self.hist_maxlen = 145
+        self.subsample_size = 20
         self.aisle_list = None
         self.dept_list = None
-        self.hist_maxlen = 145
-        self.sample_ratio = 20
+        self.clip_norm = False
 
     def parse_cmd_args(self):
         parser = argparse.ArgumentParser()
@@ -48,8 +50,6 @@ def main():
     dataloader.load()
     args.aisle_list, args.dept_list = dataloader.consts['aisle_list'], dataloader.consts['dept_list']
 
-    import pdb
-    pdb.set_trace()
     #else para
     checkpoint_dir = 'save_path/ckpt'
 

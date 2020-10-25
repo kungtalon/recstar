@@ -2,22 +2,23 @@ import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from keras.utils import to_categorical
 from data_loader.processor import DataProcessor
 from os.path import join, exists
 
 base_dir = os.path.split(os.path.abspath(__file__))[0]
+data_dir = join(base_dir, 'data')
 prior_raw_path = './data_loader/data/prior_raw.csv'
 array_columns = [('order_list', 'int32'), ('last_order_list', 'int32'), ('sub_samples', 'int32')]
-extra_columns = ['order_dow', 'order_hour_of_day', 'days_since_prior_order']
 
 def load_tables(eval_set = 'prior'):
-    path_dict = {'products': 'data/products.csv',
-                 'orders': 'data/orders.csv',
-                 'prior': 'data/order_products__prior.csv'
+    path_dict = {'products': 'products.csv',
+                 'orders': 'orders.csv',
+                 'prior': 'order_products__prior.csv'
                 }
     if eval_set == 'train':
-        path_dict['train'] = 'data/order_products__train.csv'
-    table_dict = {k : pd.read_csv(join(base_dir, table_path)) for k, table_path in path_dict.items()}
+        path_dict['train'] = 'order_products__train.csv'
+    table_dict = {k : pd.read_csv(join(data_dir, table_path)) for k, table_path in path_dict.items()}
     
     orders = table_dict['orders']
     table_dict['orders'] = orders[orders['eval_set'] == eval_set].drop('eval_set', axis=1)
@@ -49,14 +50,14 @@ class DataLoader:
     def load(self):
         try:
             for i in range(self.shard_count):
-                assert exists(join(base_dir, f'prior_input_shard_{i}.csv'))
+                assert exists(join(data_dir, f'prior_input_shard_{i}.csv'))
         except AssertionError:
             all_inp_data = self.load_prior_input()
             print('generating sharded input data...')
             size_per_shard = np.ceil(len(all_inp_data) / self.shard_count)
             print(f'each shard with size of {int(size_per_shard)}')
             for i in range(self.shard_count):
-                file_name = join(base_dir, f'data/prior_input_shard_{i}.csv')
+                file_name = join(data_dir, f'prior_input_shard_{i}.csv')
                 sharded_inp_data = all_inp_data.loc[i*size_per_shard:(i+1)*size_per_shard].copy()
                 sharded_inp_data = self.processor.gen_subsamples(sharded_inp_data, self.args)
                 sharded_inp_data.to_csv(file_name, sep=',', encoding='utf-8')
@@ -66,18 +67,21 @@ class DataLoader:
     def gen_batch(self):
         for cur_shard in range(self.shard_count):
             print(f'now processing shard {cur_shard} / {self.shard_count}')
-            self.cur_inp = self.load_csv_with_arrays(join(base_dir, f'prior_input_shard_{i}.csv'), array_columns).sample(frac=1)
+            self.cur_inp = self.load_csv_with_arrays(join(data_dir, f'prior_input_shard_{cur_shard}.csv'), array_columns)
+            self.cur_inp = self.cur_inp.sample(frac=1)
             self.cur_inp = self.processor.process_sharded_data(self.cur_inp, self.args)
             cur_len = len(self.cur_inp)
             for i in range(np.ceil(cur_len / self.batch_size)):
                 batched_data = self.cur_inp[i * self.batch_size : (i+1) * self.batch_size]
                 y = np.array(batched_data['y'].to_list())
                 hist_seq = np.array(batched_data['hist_seq'].to_list())
+                hist_len = np.array(batched_data['hist_len'].to_list())
                 sub_samples = np.array(batched_data['sub_samples'].to_list())
-                dow = np.array(batched_data['order_dow'].to_list())
-                hod = np.array(batched_data['order_hour_of_day'].to_list())
+                dow = to_categorical(np.array(batched_data['order_dow'].to_list()))
+                hod = to_categorical(np.array(batched_data['order_hour_of_day'].to_list()))
                 dense = np.array(batched_data['days_since_prior_order'].to_list())
                 yield {'hist_seq': hist_seq, 
+                       'hist_len': hist_len,
                        'y': y, 
                        'dow': dow, 
                        'hod': hod,
@@ -87,17 +91,21 @@ class DataLoader:
     def load_array(self, series, dtype='float32'):
         # transform from str type to numpy array
         def aux(mylist):
-            a = mylist[-1]
-            b = a[:-1]
-            mylist[-1] = b
-            return np.array(mylist[1:], dtype=dtype)
-        series = series.map(str.split).map(aux)
-        return series
+            if mylist[0] == '[':
+                mylist = mylist[1:]
+            if mylist[-1] == ']':
+                mylist = mylist[:-1]
+            if '[' == mylist[0][0]:
+                mylist[0] = mylist[0][1:]
+            if ']' == mylist[-1][-1]:
+                mylist[-1] = mylist[-1][:-1]
+            return np.array(mylist, dtype=dtype)
+        return series.map(str.split).map(aux)
 
     def load_csv_with_arrays(self, path, columns):
         raw = pd.read_csv(path)
-        for c, dtype in columns:
-            raw[c] = self.load_array(raw[c], dtype)
+        for cname, dtype in columns:
+            raw[cname] = self.load_array(raw[cname], dtype)
         return raw
 
 if __name__ == '__main__':
