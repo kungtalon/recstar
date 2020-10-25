@@ -112,7 +112,7 @@ class DataProcessor:
     def gen_subsamples(self, input_data, args):
         print('negative sampling...')
         # sub_sampler = NegativeSampling(args.item_count, self.consts, args.sample_ratio)
-        sub_sampler = NegativeSamplingUniform(args.item_count, self.consts, args.sample_ratio)
+        sub_sampler = NegativeSamplingUniform(args.item_count, args.sample_ratio)
         input_data['sub_samples'] = input_data['order_list'].map(sub_sampler)
         input_data = input_data.explode('sub_samples')
         return input_data
@@ -148,8 +148,8 @@ class NegativeSampling:
         return neg
 
 class NegativeSamplingUniform(NegativeSampling):
-    def __init__(self, item_count, consts, sample_ratio):
-        super.init(item_count, consts, sample_ratio)
+    def __init__(self, item_count, sample_ratio):
+        super().__init__(item_count, {}, sample_ratio)
 
     def __call__(self, pos_list):
         sub_samples_list = []
