@@ -1,11 +1,9 @@
 import os
+import sys
 import time
-import pickle
-import random
+import argparse
 import numpy as np
 import tensorflow as tf
-import sys
-import argparse
 from model import YoutubeNet
 from data_loader.loader import DataLoader
 
