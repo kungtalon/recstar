@@ -127,9 +127,10 @@ class DataProcessor:
 class NegativeSampling:
     def __init__(self, item_count, consts, sample_ratio):
         self.item_count = item_count
-        prob_dict = consts['product_prob']
-        self.probs = np.vectorize(prob_dict.get)(np.arange(0, item_count)).astype('float32')
-        self.probs[np.isnan(self.probs)] = 0
+        if consts is not None:
+            prob_dict = consts['product_prob']
+            self.probs = np.vectorize(prob_dict.get)(np.arange(0, item_count)).astype('float32')
+            self.probs[np.isnan(self.probs)] = 0
         self.sample_ratio = sample_ratio
 
     def __call__(self, pos_list):
@@ -149,7 +150,7 @@ class NegativeSampling:
 
 class NegativeSamplingUniform(NegativeSampling):
     def __init__(self, item_count, sample_ratio):
-        super().__init__(item_count, {}, sample_ratio)
+        super().__init__(item_count, None, sample_ratio)
 
     def __call__(self, pos_list):
         sub_samples_list = []
