@@ -109,17 +109,20 @@ class DataProcessor:
             return hist
         return transform
 
+    def gen_subsamples(self, input_data, args):
+        print('negative sampling...')
+        # sub_sampler = NegativeSampling(args.item_count, self.consts, args.sample_ratio)
+        sub_sampler = NegativeSamplingUniform(args.item_count, self.consts, args.sample_ratio)
+        input_data['sub_samples'] = input_data['order_list'].map(sub_sampler)
+        input_data = input_data.explode('sub_samples')
+        return input_data
+
     def process_sharded_data(self, input_data, args):
-        # 生成sub_sample, hist_seq, hist_length
+        # 生成hist_seq, hist_length和y
         input_data['hist_len'] = input_data['last_order_list'].map(lambda x: len(x))
         input_data['hist_seq'] = input_data['last_order_list'].map(self.transform_hist(args.hist_maxlen))
         input_data['y'] = input_data['order_list'].map(self.transform_y(args.item_count))
-        print('negative sampling...')
-        sub_sampler = NegativeSampling(args.item_count, self.consts, args.sample_ratio)
-        input_data['sub_samples'] = input_data['order_list'].map(sub_sampler)
-        input_data = input_data.explode('sub_samples')
         return input_data.drop(['order_list', 'last_order_list'], axis=1)
-
 
 class NegativeSampling:
     def __init__(self, item_count, consts, sample_ratio):
@@ -129,13 +132,13 @@ class NegativeSampling:
         self.probs[np.isnan(self.probs)] = 0
         self.sample_ratio = sample_ratio
 
-    def __call__(self, order_list):
+    def __call__(self, pos_list):
         sub_samples_list = []
-        pos_set = set(order_list)
-        neg_list = np.array([self.sample_neg_once(pos_set) for i in range(self.sample_ratio * len(order_list))])
-        for i in range(len(order_list)):
+        pos_set = set(pos_list)
+        neg_list = np.array([self.sample_neg_once(pos_set) for i in range(self.sample_ratio * len(pos_list))])
+        for i in range(len(pos_list)):
             index = np.random.randint(len(neg_list), size=self.sample_ratio)
-            sub_samples_list.append(np.append(neg_list[index], order_list[i]))
+            sub_samples_list.append(np.append(neg_list[index], pos_list[i]))
         return sub_samples_list
 
     def sample_neg_once(self, pos):
@@ -143,3 +146,15 @@ class NegativeSampling:
         while neg in pos:
             neg = np.random.choice(np.arange(0, self.item_count), p=self.probs)
         return neg
+
+class NegativeSamplingUniform(NegativeSampling):
+    def __init__(self, item_count, consts, sample_ratio):
+        super.init(item_count, consts, sample_ratio)
+
+    def __call__(self, pos_list):
+        sub_samples_list = []
+        all_neg_list = np.setdiff1d(np.arange(self.item_count), np.array(pos_list))
+        neg_list = np.random.choice(all_neg_list, size=self.sample_ratio * len(pos_list))
+        for i in range(len(pos_list)):
+            sub_samples_list.append(np.append(neg_list[i*self.sample_ratio:(i+1)*self.sample_ratio], pos_list[i]))
+        return sub_samples_list

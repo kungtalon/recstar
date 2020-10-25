@@ -7,7 +7,7 @@ from os.path import join, exists
 
 base_dir = os.path.split(os.path.abspath(__file__))[0]
 prior_raw_path = './data_loader/data/prior_raw.csv'
-array_columns = [('hist_seq', 'int32'), ('y', 'float32'), ('sub_samples', 'int32')]
+array_columns = [('order_list', 'int32'), ('last_order_list', 'int32'), ('sub_samples', 'int32')]
 extra_columns = ['order_dow', 'order_hour_of_day', 'days_since_prior_order']
 
 def load_tables(eval_set = 'prior'):
@@ -34,10 +34,6 @@ class DataLoader:
         self.cur_inp = None
         self.batch_size = args.batch_size
         self.shard_count = args.shard_count
-        if args.is_training:
-            self.gen_prior_data()
-        else:
-            pass
 
     def load_prior_input(self):
         if exists(prior_raw_path):
@@ -50,11 +46,10 @@ class DataLoader:
             prior_inp.to_csv(prior_raw_path, sep=',', encoding='utf-8')
             return prior_inp
 
-    def gen_prior_data(self):
+    def load(self):
         try:
             for i in range(self.shard_count):
                 assert exists(join(base_dir, f'prior_input_shard_{i}.csv'))
-            print('sharded input data are prepared!')
         except AssertionError:
             all_inp_data = self.load_prior_input()
             print('generating sharded input data...')
@@ -63,14 +58,16 @@ class DataLoader:
             for i in range(self.shard_count):
                 file_name = join(base_dir, f'data/prior_input_shard_{i}.csv')
                 sharded_inp_data = all_inp_data.loc[i*size_per_shard:(i+1)*size_per_shard].copy()
-                sharded_inp_data = self.processor.process_sharded_data(sharded_inp_data, self.args)
+                sharded_inp_data = self.processor.gen_subsamples(sharded_inp_data, self.args)
                 sharded_inp_data.to_csv(file_name, sep=',', encoding='utf-8')
                 print(f'writing {i}th shard to csv...')
+        print('sharded input data are prepared!')
 
     def gen_batch(self):
         for cur_shard in range(self.shard_count):
             print(f'now processing shard {cur_shard} / {self.shard_count}')
             self.cur_inp = self.load_csv_with_arrays(join(base_dir, f'prior_input_shard_{i}.csv'), array_columns).sample(frac=1)
+            self.cur_inp = self.processor.process_sharded_data(self.cur_inp, self.args)
             cur_len = len(self.cur_inp)
             for i in range(np.ceil(cur_len / self.batch_size)):
                 batched_data = self.cur_inp[i * self.batch_size : (i+1) * self.batch_size]
@@ -88,6 +85,7 @@ class DataLoader:
                        'dense': dense}
 
     def load_array(self, series, dtype='float32'):
+        # transform from str type to numpy array
         def aux(mylist):
             a = mylist[-1]
             b = a[:-1]

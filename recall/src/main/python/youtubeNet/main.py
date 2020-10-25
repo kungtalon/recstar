@@ -20,7 +20,7 @@ class MyArgs:
         self.aisle_count = cmd_args.aisle_count + 1
         self.dept_count = cmd_args.dept_count + 1
         self.epoch = cmd_args.epoch
-        self.shard_count = 20
+        self.shard_count = 100
         self.aisle_list = None
         self.dept_list = None
         self.hist_maxlen = 145
@@ -45,6 +45,7 @@ def main():
 
     #read data
     dataloader = DataLoader(args)
+    dataloader.load()
     args.aisle_list, args.dept_list = dataloader.consts['aisle_list'], dataloader.consts['dept_list']
 
     import pdb
