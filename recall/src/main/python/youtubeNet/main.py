@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import os
 import sys
 import time
@@ -18,6 +20,7 @@ class MyArgs:
         self.aisle_count = cmd_args.aisle_count + 1
         self.dept_count = cmd_args.dept_count + 1
         self.epoch = cmd_args.epoch
+        self.init_lr = cmd_args.lr
         self.dense_size = 1
         self.shard_count = 100
         self.hist_maxlen = 145
@@ -34,6 +37,7 @@ class MyArgs:
         parser.add_argument('-ai', '--aisle_count', type=int, default=134)
         parser.add_argument('-dp', '--dept_count', type=int, default=21)
         parser.add_argument('-bs', '--batch_size', type=int, default=128)
+        parser.add_argument('-lr', '--lr', type=float, default=0.1)
         parser.add_argument('-d', '--debug', action='store_true')
         parser.add_argument('--eval', action='store_true')
         args = parser.parse_args()
@@ -60,31 +64,29 @@ def main():
 
         sys.stdout.flush()
         if args.is_training:
-            lr = 1.0
+            lr = args.init_lr
             start_time = time.time()
-            for _ in range(args.epoch):
+            for epoch in range(args.epoch):
 
                 loss_sum = 0.0
-                for batched_data in dataloader.gen_batch():
+                for i, batched_data in enumerate(dataloader.gen_batch()):
 
                     loss = model.train(sess, batched_data, lr)
                     loss_sum += loss
 
                     if model.global_step.eval() % 1000 == 0:
                         model.save(sess, checkpoint_dir)
-                        print('Global_step %d\tTrain_loss: %.4f' %
-                              (model.global_step.eval(),
-                               loss_sum/1000))
-
-                        print('Epoch %d Global_step %d\tTrain_loss: %.4f' %
-                              (model.global_epoch_step.eval(), model.global_step.eval(),
-                               loss_sum / 1000))
+                        info_list = ['Epoch : {0}\tBatch num : {1}'.format(epoch, i+1),
+                                     'Global step : {}'.format(model.global_step.eval()),
+                                     'Train loss : {.4f}'.format(loss_sum/1000),
+                                     'Learning rate : {.2f}'.format(lr)]
+                        print('\t'.join(info_list))
 
                         sys.stdout.flush()
                         loss_sum = 0.0
 
-                    if model.global_step.eval() % 336000 == 0:
-                        lr = 0.1
+                    if (i+1) % 1300000 == 0:
+                        lr *= 0.7
 
                 print('Epoch %d DONE\tCost time: %.2f' %
                           (model.global_epoch_step.eval(), time.time() - start_time))
