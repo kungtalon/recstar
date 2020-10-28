@@ -148,8 +148,15 @@ class YoutubeNet:
         })
         return loss
 
-    # def test(self, sess, uid, hist_i, sl,last):
-    #     return None
+    def test(self, sess, data):
+        out = sess.run(self.output, feed_dict={
+            self.hist_i: data['hist_seq'],
+            self.sl: data['hist_len'],
+            self.dow: data['dow'],
+            self.hod: data['hod'],
+            self.dense: data['dense']
+        })
+        return out
 
     def save(self, sess, path):
         saver = tf.train.Saver()

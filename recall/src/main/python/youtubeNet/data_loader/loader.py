@@ -22,7 +22,10 @@ def load_tables(eval_set = 'prior'):
     table_dict = {k : pd.read_csv(join(data_dir, table_path)) for k, table_path in path_dict.items()}
     
     orders = table_dict['orders']
-    table_dict['orders'] = orders[orders['eval_set'] == eval_set].drop('eval_set', axis=1)
+    if eval_set == 'prior':
+        table_dict['orders'] = orders[orders['eval_set'] == eval_set].drop('eval_set', axis=1)
+    else:
+        table_dict['orders'] = orders[orders['eval_set'] != 'test']
     
     return table_dict
 
@@ -49,22 +52,32 @@ class DataLoader:
             prior_inp.to_csv(prior_raw_path, sep=',', encoding='utf-8')
             return prior_inp
 
-    def load(self):
-        try:
-            for i in range(self.shard_count):
-                assert exists(join(data_dir, f'prior_input_shard_{i}.csv'))
-        except AssertionError:
-            all_inp_data = self.load_prior_input()
-            print('generating sharded input data...')
-            size_per_shard = np.ceil(len(all_inp_data) / self.shard_count)
-            print(f'each shard with size of {int(size_per_shard)}')
-            for i in range(self.shard_count):
-                file_name = join(data_dir, f'prior_input_shard_{i}.csv')
-                sharded_inp_data = all_inp_data.loc[i*size_per_shard:(i+1)*size_per_shard].copy()
-                sharded_inp_data = self.processor.gen_subsamples(sharded_inp_data, self.args)
-                sharded_inp_data.to_csv(file_name, sep=',', encoding='utf-8')
-                print(f'writing {i}th shard to csv...')
-        print('sharded input data are prepared!')
+    def preload(self, is_training):
+        if is_training:
+            try:
+                for i in range(self.shard_count):
+                    assert exists(join(data_dir, f'prior_input_shard_{i}.csv'))
+            except AssertionError:
+                all_inp_data = self.load_prior_input()
+                print('generating sharded input data...')
+                size_per_shard = np.ceil(len(all_inp_data) / self.shard_count)
+                print(f'each shard with size of {int(size_per_shard)}')
+                for i in range(self.shard_count):
+                    file_name = join(data_dir, f'prior_input_shard_{i}.csv')
+                    sharded_inp_data = all_inp_data.loc[i*size_per_shard:(i+1)*size_per_shard].copy()
+                    sharded_inp_data = self.processor.gen_subsamples(sharded_inp_data, self.args)
+                    sharded_inp_data.to_csv(file_name, sep=',', encoding='utf-8')
+                    print(f'writing {i}th shard to csv...')
+            print('sharded input data are prepared!')
+        else:
+            try:
+                assert exists(join(data_dir, f'train_input_data.csv'))
+            except AssertionError:
+                print('generating test input data...')
+                all_inp_data = self.processor.get_train_input()
+                file_name = join(data_dir, f'train_input_data.csv')
+                all_inp_data.to_csv(file_name, sep=',', encoding='utf-8')
+            print('test input data are prepared!')
 
     def gen_batch(self):
         for cur_shard in range(self.shard_count):
@@ -89,6 +102,28 @@ class DataLoader:
                        'hod': hod,
                        'sub_samples': sub_samples,
                        'dense': dense}
+
+    def gen_test_batch(self):
+        self.cur_inp = self.load_csv_with_arrays(\
+            join(data_dir, f'train_input_data.csv'), [('last_order_list', 'int32'), ('order_list', 'int32')])
+        self.cur_inp = self.processor.process_test_data(self.cur_inp, self.args)
+        cur_len = len(self.cur_inp)
+        for i in range(int(np.ceil(cur_len / self.batch_size))):
+            batched_data = self.cur_inp[i * self.batch_size : (i+1) * self.batch_size]
+            order_id = np.array(batched_data['order_id'].to_list())
+            y = np.array(batched_data['y'].to_list())
+            hist_seq = np.array(batched_data['hist_seq'].to_list())
+            hist_len = np.array(batched_data['hist_len'].to_list())
+            dow = to_categorical(np.array(batched_data['order_dow'].to_list()), num_classes=7)
+            hod = to_categorical(np.array(batched_data['order_hour_of_day'].to_list()), num_classes=24)
+            dense = np.array(batched_data['days_since_prior_order'].to_list()).reshape(-1, self.dense_size)
+            yield {'order_id': order_id,
+                   'hist_seq': hist_seq,
+                   'hist_len': hist_len,
+                   'y': y,
+                   'dow': dow,
+                   'hod': hod,
+                   'dense': dense}
 
     def parse_array(self, series, dtype='float32'):
         # transform from str type to numpy array

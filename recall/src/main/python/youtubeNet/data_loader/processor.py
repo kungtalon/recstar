@@ -40,20 +40,23 @@ class DataProcessor:
         [user_id,] last_order_list, reorder_list, order_dow, order_hour_of_day, days_since_prior_order
         '''
         m_days_po, sd_days_po = self.consts['m_days_po'], self.consts['sd_days_po']
-        origin_data = self.tables['orders']
+        orders = self.tables['orders']
+        origin_data = orders[orders['eval_set'] == 'train'].copy()
         origin_data['days_since_prior_order'] = (origin_data['days_since_prior_order'] - m_days_po) / sd_days_po
         origin_data['order_dow'] -= 1
         
         # 拼接上一次的order_list
-        order_items = self.tables['prior'].groupby('order_id')['product_id'].apply(lambda x : np.array(x))
-        orders0 = pd.DataFrame({'last_order_id': origin_data['order_id'],
-                                'user_id': origin_data['user_id'],
-                                'order_number': origin_data['order_number'] + 1})
-        origin_data = origin_data.merge(orders0,\
-             left_on=['order_number', 'user_id'], right_on=['order_number', 'user_id'], how='left')
-        input_x = origin_data.dropna().set_index('last_order_id').\
-            join(order_items).rename(columns={'product_id': 'last_order_list'})
-        input_data = input_x.set_index('order_id').join(order_items).rename(columns={'product_id': 'order_list'})
+        prior_order_items = self.tables['prior'].groupby('order_id')['product_id'].apply(lambda x : np.array(x))
+        orders00 = orders.sort_values(['user_id', 'order_number'], ascending=False).groupby('user_id', as_index=False).head(2)
+        orders0 = pd.DataFrame({'last_order_id': orders00['order_id'],
+                                'user_id': orders00['user_id'],
+                                'order_number': orders00['order_number'] + 1})
+        origin_data = origin_data.merge(orders0, on=['order_number', 'user_id'], how='left')
+        input_x = origin_data.set_index('last_order_id').\
+            join(prior_order_items).rename(columns={'product_id': 'last_order_list'})
+        
+        train_order_items = self.tables['train'].groupby('order_id')['product_id'].apply(lambda x : np.array(x))
+        input_data = input_x.set_index('order_id').join(train_order_items).rename(columns={'product_id': 'order_list'})
         return input_data.reset_index()
         
 
@@ -126,6 +129,12 @@ class DataProcessor:
         input_data['hist_seq'] = input_data['last_order_list'].map(self.transform_hist(args.hist_maxlen))
         input_data['y'] = input_data['order_list'].map(self.transform_y(args.item_count))
         input_data['sampled_y'] = input_data.apply(lambda row : row['y'][row['sub_samples']], axis=1)
+        return input_data.drop(['order_list', 'last_order_list'], axis=1)
+
+    def process_test_data(self, input_data, args):
+        input_data['hist_len'] = input_data['last_order_list'].map(lambda x: len(x))
+        input_data['hist_seq'] = input_data['last_order_list'].map(self.transform_hist(args.hist_maxlen))
+        input_data['y'] = input_data['order_list'].map(self.transform_y(args.item_count))
         return input_data.drop(['order_list', 'last_order_list'], axis=1)
 
 class NegativeSampling:
