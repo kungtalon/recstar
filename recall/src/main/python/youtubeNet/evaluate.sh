@@ -1,0 +1,1 @@
+python3 main.py --eval -bs=256
