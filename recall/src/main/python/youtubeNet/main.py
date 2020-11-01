@@ -16,9 +16,9 @@ class MyArgs:
         self.is_training = not cmd_args.eval
         self.embedding_size = cmd_args.emb_size
         self.batch_size = cmd_args.batch_size
-        self.item_count = cmd_args.item_count + 1  # 空出第一个token
-        self.aisle_count = cmd_args.aisle_count + 1
-        self.dept_count = cmd_args.dept_count + 1
+        self.item_count = 49688 + 1  # 空出第一个token
+        self.aisle_count = 134 + 1
+        self.dept_count = 21 + 1
         self.epoch = cmd_args.epoch
         self.init_lr = cmd_args.lr
         self.resume = cmd_args.resume
@@ -28,6 +28,7 @@ class MyArgs:
         self.hist_maxlen = 145
         self.subsample_size = 20
         self.lr_decay = 0.5
+        self.lr_decay_interval = 160000
         self.aisle_list = None
         self.dept_list = None
         self.clip_norm = False
@@ -36,9 +37,6 @@ class MyArgs:
         parser = argparse.ArgumentParser()
         parser.add_argument('-e', '--epoch', type=int, default=2)
         parser.add_argument('-es', '--emb_size', type=int, default=64)
-        parser.add_argument('-it', '--item_count', type=int, default=49688)
-        parser.add_argument('-ai', '--aisle_count', type=int, default=134)
-        parser.add_argument('-dp', '--dept_count', type=int, default=21)
         parser.add_argument('-bs', '--batch_size', type=int, default=128)
         parser.add_argument('-lr', '--lr', type=float, default=0.5)
         parser.add_argument('-tn', '--topn', type=int, default=10)
@@ -49,7 +47,7 @@ class MyArgs:
         return args
 
 def adjust_lr(lr, global_step, args):
-    return lr * np.power(args.lr_decay, global_step // 160000)
+    return lr * np.power(args.lr_decay, global_step // args.lr_decay_interval)
 
 def main():
     #make args

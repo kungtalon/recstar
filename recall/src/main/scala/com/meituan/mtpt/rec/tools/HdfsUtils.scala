@@ -3,6 +3,7 @@ package com.meituan.mtpt.rec.tools
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.rdd.RDD
+import shapeless.syntax.std.tuple.productTupleOps
 
 /**
   * Created by feng on 2017/11/2.
@@ -66,5 +67,16 @@ object HdfsUtils {
     }
 
     recallRDD
+  }
+
+  def saveOrderLists(resultRDD:RDD[(String, Int, Int, Float, List[Int], List[Int], List[Int], List[Int])], path:String): Unit = {
+    resultRDD.map{
+      case (orderId, dow, hod, daysPo, histOrdered, histReordered, ordered, subsampled) =>
+        val histOrderedStr = histOrdered.mkString(" ")
+        val histReorderedStr = histReordered.mkString(" ")
+        val orderedStr = ordered.mkString(" ")
+        val subsampledStr = subsampled.mkString(" ")
+        List(orderId, dow, hod, daysPo, histOrderedStr, histReorderedStr, orderedStr, subsampledStr).mkString(",")
+    }.saveAsTextFile(path)
   }
 }

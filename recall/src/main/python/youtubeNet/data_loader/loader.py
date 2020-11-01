@@ -9,7 +9,7 @@ from os.path import join, exists
 
 base_dir = os.path.split(os.path.abspath(__file__))[0]
 data_dir = join(base_dir, 'data')
-prior_raw_path = './data_loader/data/prior_raw.csv'
+prior_raw_path = join(data_dir, 'prior_raw.csv')
 array_columns = [('order_list', 'int32'), ('last_order_list', 'int32'), ('sub_samples', 'int32')]
 
 def load_tables(eval_set = 'prior'):
@@ -70,9 +70,7 @@ class DataLoader:
                     print(f'writing {i}th shard to csv...')
             print('sharded input data are prepared!')
         else:
-            try:
-                assert exists(join(data_dir, f'train_input_data.csv'))
-            except AssertionError:
+            if not exists(join(data_dir, f'train_input_data.csv')):
                 print('generating test input data...')
                 all_inp_data = self.processor.get_train_input()
                 file_name = join(data_dir, f'train_input_data.csv')

@@ -4,8 +4,7 @@ import org.apache.spark.sql.DataFrame
 
 object consts {
 
-  def broadTable(mode: String) : DataFrame = {
-    val sqlBar =
+  def broadTable(mode: String) : String = {
       s"""
          |select t_main.order_id order_id,
          |       user_id,
@@ -24,12 +23,9 @@ object consts {
          |  left join ba_dealrank.recommend_star_products t_prod
          |    on t_main.product_id = t_prod.product_id
          |""".stripMargin
-
-    sqlBar
   }
 
   def itemHotTime() : String = {
-    val sqlBar =
       s"""
          |select *
          |  from (
@@ -52,11 +48,9 @@ object consts {
          |
          |""".stripMargin
 
-    sqlBar
   }
 
   def itemOrderIndex(): String ={
-    val sqlBar =
       s"""
          |select a.product_id product_id,
          |       order_pv,
@@ -85,19 +79,53 @@ object consts {
          |
          |""".stripMargin
 
-    sqlBar
   }
 
   def itemAvgCartOrder(): String ={
-    val sqlBar =
       s"""
          |select product_id product_id,
          |       avg(add_to_cart_order) avg_cart_order
          |  from ba_dealrank.recommend_star_order_products__prior
          | group by product_id
          |""".stripMargin
-    sqlBar
   }
 
+  def allOrders(): String = {
+    s"""
+       |select orders.order_id,
+       |       user_id,
+       |       product_id,
+       |       order_number,
+       |       add_to_cart_order,
+       |       reordered
+       |  from ba_dealrank.recommend_star_orders orders
+       |  left join ba_dealrank.recommend_star_order_products__prior `prior`
+       |    on orders.order_id = prior.order_id
+       | where eval_set = 'prior'
+       | union select orders.order_id,
+       |       user_id,
+       |       product_id,
+       |       order_number,
+       |       add_to_cart_order,
+       |       reordered
+       |  from ba_dealrank.recommend_star_orders orders
+       |  left join ba_dealrank.recommend_star_order_products__train `train`
+       |    on orders.order_id = train.order_id
+       | where eval_set = 'train'
+       |""".stripMargin
+  }
+
+  def mainOrdersContext(evalSet:String): String = {
+    s"""
+       |select orders.order_id,
+       |       order_dow,
+       |       order_hour_of_day,
+       |       days_since_prior_order
+       |  from ba_dealrank.recommend_star_orders orders
+       |  left join ba_dealrank.recommend_star_order_products__$evalSet `main`
+       |    on orders.order_id = main.order_id
+       | where eval_set = '$evalSet'
+       |""".stripMargin
+  }
 
 }
