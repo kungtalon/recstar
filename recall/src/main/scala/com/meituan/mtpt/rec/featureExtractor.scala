@@ -97,7 +97,7 @@ object featureExtractor {
     subsampled
   }
 
-  def main(): Unit ={
+  def main(args: Array[String]): Unit ={
     val originRDD = getRawTable()
     val userHistory = mergeUserHist(originRDD)
 
