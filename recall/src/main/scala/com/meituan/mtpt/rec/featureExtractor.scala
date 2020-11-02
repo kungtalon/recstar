@@ -19,8 +19,8 @@ object featureExtractor {
     val sqlBar = consts.allOrders()
     val res = env.hsc.sql(sqlBar).rdd.map(
       row => {
-        val orderId = row.getAs[String]("order_id")
-        val userId = row.getAs[String]("user_id")
+        val orderId = row.getAs("order_id").toString
+        val userId = row.getAs("user_id").toString
         val productId = row.getAs[Int]("product_id")
         val orderNum = row.getAs[Int]("order_number")
         val cartOrder = row.getAs[Int]("add_to_cart_order")
@@ -35,7 +35,7 @@ object featureExtractor {
     val sqlBar = consts.mainOrdersContext(evalSet)
     val res = env.hsc.sql(sqlBar).rdd.map(
       row => {
-        val orderId = row.getAs[String]("order_id")
+        val orderId = row.getAs("order_id").toString
         val order_dow = row.getAs[Int]("order_dow")
         val order_hod = row.getAs[Int]("order_hour_of_day")
         val daysPo = row.getAs[Float]("days_since_prior_order")
