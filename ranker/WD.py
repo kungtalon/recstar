@@ -133,7 +133,7 @@ def train():
     feature_description['label'] = tf.FixedLenFeature(dtype=tf.float32, shape=1)
 
     train_model_input = input_fn_tfrecord(train_record_path, feature_description, 'label', batch_size=256,
-                                          num_epochs=2, shuffle_factor=10)
+                                          num_epochs=5, shuffle_factor=10)
     test_model_input = input_fn_tfrecord(test_record_path, feature_description, 'label',
                                          batch_size=2 ** 14, num_epochs=1, shuffle_factor=0)
 
@@ -150,7 +150,6 @@ def train():
     eval_result = model.evaluate(test_model_input)
 
     print(eval_result)
-    os.system('say "你的代码跑完了"')
 
 if __name__ == '__main__':
     gen_record()
