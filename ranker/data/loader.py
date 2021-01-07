@@ -5,10 +5,10 @@ from collections import defaultdict
 from sklearn.preprocessing import LabelEncoder
 
 data_dir = os.path.split(os.path.abspath(__file__))[0]
-raw_train_path = os.path.join(data_dir, 'train')
-raw_test_path = os.path.join(data_dir, 'test')
-train_path = os.path.join(data_dir, 'train_custom')
-test_path = os.path.join(data_dir, 'test_custom')
+raw_train_path = os.path.join(data_dir, 'train.csv')
+raw_test_path = os.path.join(data_dir, 'test.csv')
+train_path = os.path.join(data_dir, 'train_custom.csv')
+test_path = os.path.join(data_dir, 'test_custom.csv')
 
 class DataLoader:
     def __init__(self):
@@ -31,14 +31,37 @@ class DataLoader:
         df['dayofweek'] = df['dt_hour'].dt.dayofweek
         return df
 
-    def get_batch_generator(self, df, batch_size):
-        x = df[self.x_columns(df)]
-        y = df[self.label_col]
-        total_len = len(df)
-        batch_num = int(np.ceil(total_len / batch_size))
-        for i in range(batch_num):
-            yield {'x': x[i*batch_size:(i+1)*batch_size], 
-                   'y': y[i*batch_size:(i+1)*batch_size]}
+    def get_batch_generator(self, chunk_size, batch_size):
+        for chunk in pd.read_csv(os.path.join(data_dir, 'train'), chunksize=chunksize):
+            x, y = self.process(chunk)
+            total_len = len(x)
+            batch_num = int(np.ceil(total_len / batch_size))
+            for i in range(batch_num):
+                yield {'x': x[i*batch_size:(i+1)*batch_size], 
+                       'y': y[i*batch_size:(i+1)*batch_size]}
+
+    def preprocess(self):
+        # 生成EncoderMap
+        # 生产dense特征的的mean, std
+        df = pd.read_csv(raw_train_path)
+
+        df = self.to_date_column(df)
+
+        df = df.drop(['id', 'device_id', 'device_ip'])
+        featdims = dict(df.nunique())
+        high_dim_feats = []
+        low_dim_feats = []
+        for k, v in featdims.items():
+            if v > 100:
+                high_dim_feats.append(k)
+            else:
+                low_dim_feats.append(k)
+        
+    def process(self, df):
+        pass
+
+    def gen_expand_features(self, ):
+        pass
 
     def filter_features(self, df):
         cols = df.columns
@@ -84,4 +107,25 @@ class DataLoader:
 
     @property
     def test_set(self):
-        return self.test.values[:, 1:]
+        return self.test.drop(self.label_col, axis=1).values, self.test[self.label_col].values
+
+class EncoderMap:
+    def __init__(self, keys=None):
+        self.lut = dict()
+        self.last_num = 0
+        if keys is not None:
+            for i in keys:
+                self.put(i)
+
+    def put(self, key):
+        if self.lut.__contains__(key):
+            return 
+        self.lut[key] = self.last_num
+        self.last_num += 1
+
+    def __call__(self, key):
+        return self.__getitem__(key)
+    
+    def __getitem__(self, key):
+        self.put(key)
+        return self.lut[key]

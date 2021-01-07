@@ -16,9 +16,9 @@ import time
 lbe_map_path = './lbe_map3.pkl'
 raw_train_path = './data/train.csv'
 raw_test_path = './data/test.csv'
-train_record_path = './data/train_records3'
-test_record_path = './data/test_records3'
-save_dir = './deepFM_log/'
+train_record_path = './data/train_records4'
+test_record_path = './data/test_records4'
+save_dir = './deepFM_log3/'
 time_feats = ['day', 'hourofday', 'dayofweek']
 
 def my_auc(labels, predictions):
@@ -70,7 +70,7 @@ def gen_record(is_training=True):
         for chunk in pd.read_csv(data_path, chunksize=chunksize):
             num_of_chunk += 1
             if is_training:
-                samples = chunk.sample(frac=.5, replace=False, random_state=123).reset_index()
+                samples = chunk.sample(frac=.7, replace=False, random_state=123).reset_index()
             else:
                 samples = chunk.reset_index()
             for c in lbe_map.keys():
@@ -80,7 +80,7 @@ def gen_record(is_training=True):
 
             random_arr = np.random.random(len(samples))
             for i in range(len(samples)):
-                if is_training and samples['click'][i] == 0 and random_arr[i] < 0.75:   # 负样本采样
+                if is_training and samples['click'][i] == 0 and random_arr[i] < 0.8:   # 负样本采样
                     continue
                 feature_map = {}
                 for c in x_columns:
@@ -133,23 +133,25 @@ def train():
     feature_description['label'] = tf.FixedLenFeature(dtype=tf.float32, shape=1)
 
     train_model_input = input_fn_tfrecord(train_record_path, feature_description, 'label', batch_size=256,
-                                          num_epochs=5, shuffle_factor=10)
+                                          num_epochs=3, shuffle_factor=10)
     test_model_input = input_fn_tfrecord(test_record_path, feature_description, 'label',
-                                         batch_size=2 ** 14, num_epochs=1, shuffle_factor=0)
+                                         batch_size=4000000, num_epochs=1, shuffle_factor=0)
+
 
     # 3.Define Model,train,predict and evaluate
     model = DeepFMEstimator(linear_feature_columns, dnn_feature_columns, 
-                            dnn_hidden_units=(128, 64), model_dir=save_dir, 
-                            task='binary', dnn_optimizer='Adam')
+                            dnn_hidden_units=(128, 64), model_dir=save_dir,
+                            l2_reg_linear=0.005, task='binary', dnn_optimizer='Adam')
     model = tf.estimator.add_metrics(model, my_auc)
 
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) + ' start training!')
-    model.train(train_model_input)
+    # model.train(train_model_input)
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) + ' done training!')
 
     eval_result = model.evaluate(test_model_input)
 
     print(eval_result)
+    os.system('say "你的代码训练完了"')
 
 if __name__ == '__main__':
     gen_record()
