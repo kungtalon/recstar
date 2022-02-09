@@ -8,4 +8,4 @@ YoutubeNet - Youtubenet.py
 
 CTR prediction:
 Logistic Regression - LR.py
-
+Wide & Deep Model - WD.py
