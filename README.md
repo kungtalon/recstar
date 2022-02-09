@@ -1,4 +1,4 @@
-# Common recommendation system methods
+# Common Recommendation System Methods
 
 **Retrieval Process** (Also Recall Process):
 
