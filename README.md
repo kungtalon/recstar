@@ -1,4 +1,4 @@
-# Some implementations of basic recommendation system methods
+# Some implementations of common recommendation system methods
 
 **Retrieval Process** (Also Recall Process):
 
